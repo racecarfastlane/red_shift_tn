@@ -1,7 +1,7 @@
 ---
 title: "Census API Data"
 author: "Stan Ferguson"
-date: "1/5/2020"
+date: "1/5/2021"
 output: html_document
 ---
 
@@ -30,8 +30,7 @@ CENSUS_KEY="d1618423da2fa2032781c64c8f39311867ed3053"
 View(apis)
 ```
 
-##### Balancing breadth and depth, we decided to use the 2018 ACS 5-year data  
-Look at the metadata and make some decisions about what to keep (to-do offline).
+
 ``` {r}
 # Create a new dataframe to store the metadata for the 2018 ACS 5-year dataset
 
@@ -42,189 +41,12 @@ acs_vars_nineties <- listCensusMetadata(
  type = "variables"
 )
 
-
+View(acs_vars_nineties)
 ```
 
-
-``` {r}
-}
-
-# Take a look at the metadata dataframe
- View(acs_vars)
-
-# Count the number of times '!!' shows up as a separator in the `label` field
-max(str_count(acs_vars$label, "!!"))
-
-# Split the `label` field into their own fields and keep the original `label` field
-acs_vars <- acs_vars %>%
-     separate(
-     label,
-     c('label_01', 'label_02', 'label_03', 'label_04', 'label_05', 'label_06', 'label_07', 'label_08'),
-     sep = "!!",
-     remove = FALSE,
-     convert = FALSE
-     )
-
-
-
-# Order by the `label_02` column
-acs_vars <- arrange(acs_vars, concept, label_01, label_02, label_03, label_04, label_05, label_06, label_07, label_08)
-```
-
-##### Write to a CSV for group perusal
 
 ``` {r}
 write.csv(acs_vars_nineties, "data/demographics/1990s_metadata.csv", row.names = FALSE)
-```
-
-##### Start looking at the fields in the ACS 2018 5-year data
-
-Just a preliminary exploration.
-``` {r}
-# Take a look at the unique values in the concept field
-acs_concepts <- unique(acs_vars$concept)
-View(acs_concepts)
-
-# Take a look at the unique values in the label_01 field
-acs_label_01 <- unique(acs_vars$label_01)
-View(acs_label_01)
-
-# Take a look at the unique values in the label_02 field
-acs_label_02 <- unique(acs_vars$label_02)
-View(acs_label_02)
-```
-
-##### Select only the labels we need for the project
-
-``` {r}
-# Create a list of the label_02 values we want to filter on
-label_02s <- c('DISABILITY STATUS OF THE CIVILIAN NONINSTITUTIONALIZED POPULATION',
-'EDUCATIONAL ATTAINMENT',
-'HISPANIC OR LATINO AND RACE',
-'HOUSEHOLDS BY TYPE',
-'LANGUAGE SPOKEN AT HOME',
-'MARITAL STATUS',
-'PERCENTAGE OF FAMILIES AND PEOPLE WHOSE INCOME IN THE PAST 12 MONTHS IS BELOW THE POVERTY LEVEL',
-'SEX AND AGE',
-'U.S. CITIZENSHIP STATUS',
-'VETERAN STATUS')
-
-vals <- c('DP05_0071E',
-'DP05_0070E',
-'DP05_0027E',
-'DP05_0026E',
-'DP02_0119E',
-'DP02_0118E',
-'DP02_0111E',
-'DP02_0113E',
-'DP02_0112E',
-'DP02_0117E',
-'DP02_0116E',
-'DP02_0121E',
-'DP02_0120E',
-'DP02_0115E',
-'DP02_0114E',
-'DP02_0110E',
-'DP02_0035E',
-'DP02_0031E',
-'DP02_0032E',
-'DP02_0033E',
-'DP02_0034E',
-'DP02_0030E',
-'DP02_0029E',
-'DP02_0025E',
-'DP02_0026E',
-'DP02_0027E',
-'DP02_0028E',
-'DP02_0024E',
-'DP02_0094E',
-'DP02_0095E',
-'DP02_0093E',
-'DP02_0069E',
-'DP02_0068E',
-'DP05_0079E',
-'DP05_0080E',
-'DP05_0078E',
-'DP05_0081E',
-'DP05_0082E',
-'DP05_0083E',
-'DP05_0077E',
-'DP05_0007E',
-'DP05_0008E',
-'DP05_0021E',
-'DP05_0009E',
-'DP05_0010E',
-'DP05_0011E',
-'DP05_0012E',
-'DP05_0006E',
-'DP05_0013E',
-'DP05_0014E',
-'DP05_0023E',
-'DP05_0015E',
-'DP05_0031E',
-'DP05_0030E',
-'DP05_0029E',
-'DP05_0024E',
-'DP05_0016E',
-'DP05_0017E',
-'DP05_0003E',
-'DP05_0002E',
-'DP05_0019E',
-'DP05_0001E',
-'DP02_0075E',
-'DP02_0074E',
-'DP02_0077E',
-'DP02_0076E',
-'DP02_0060E',
-'DP02_0063E',
-'DP02_0064E',
-'DP02_0067E',
-'DP02_0065E',
-'DP02_0061E',
-'DP02_0066E',
-'DP02_0059E',
-'DP02_0062E',
-'DP02_0058E')
-
-# Create a new dataframe for only the variables we want and drop the columns we won't need
-target_acs_vars <- acs_vars %>% 
-        filter(label_02 %in% label_02s) %>% 
-        filter(name %in% vals) %>% 
-        filter(label_01 == "Estimate") %>% 
-        filter(concept != "SELECTED SOCIAL CHARACTERISTICS IN PUERTO RICO") %>% 
-        select(-one_of(c("label", "label_07", "label_08", "predicateType", "group", "limit", "attributes", "required")))
-
-View(acs_vars)
-# Did it work?
-# View(target_acs_vars)
-```
-
-##### Get the data for Davidson County, TN
-
-Link to the state / county codes here:
-``` {r}
-# Check to see what geo fields there are in the 2018 ACS 5-year dataset
-listCensusMetadata(
-        name = "acs/acs5/profile",
-        vintage = "2018",
-        type = "geography"
-) # %>% # add me if you want to view it immediately
-  #      View()
-
-# Turn the name column from our target_acs_vars table into a list
-target_names <- target_acs_vars$name
-
-# Check to see if it worked
-# View(target_names)
-
-# Get the data we want from the census API
-
-
-
-acsVarsName <- acs_vars %>%
-  pull(name)
-
-View(acsVarsName)
 ```
 
 
@@ -233,47 +55,66 @@ CENSUS_KEY="d1618423da2fa2032781c64c8f39311867ed3053"
 
 acs_data <- getCensus(
         name = "pep/int_charagegroups",
-        vintage = "2000",
-        region = "county:001",
-        regionin = "state:06",
+        vintage = "1990",
+        region = "county:*",
+        regionin = "state:47",
         key = CENSUS_KEY,
-        vars = c("RACE")
+        vars = c("YEAR,COUNTY,RACE_SEX,HISP,POP,AGEGRP")
 )
-
-view(acs_data)
-
-
-
-```
-
-
-``` {r}
-acs_data %>%
-  group_by(RACE_SEX) %>%
-  summarise(sum(POP))
 ```
 
 
 ``` {r}
 head(acs_data)
-
-unique(acs_data$RACE_SEX)
-
+```
 
 
-# Pivot the dataframe so there aren't 195 columns
-acs_data <- pivot_longer(
-        acs_data,
-        cols = starts_with("DP"),
-        names_to = "name",
-        values_to = "value"
-)
+```{r}
+acs_data <- acs_data %>%
+  mutate(RACE_SEX =
+    case_when
+    (
+      RACE_SEX %in% c("01","02") ~ "white",
+      RACE_SEX %in% c("03","04") ~ "black",
+      RACE_SEX %in% c("05","06","07","08") ~ "other"
+  )) %>%
+  group_by(YEAR,COUNTY,RACE_SEX) %>%
+  summarise(sum(POP))
 
-# Join the dataframe to the metadata dataframe to get all of the label information
-acs_data <-
-        inner_join(acs_data, target_acs_vars, by = "name", copy = FALSE)
+head(acs_data)
+```
+
+
+``` {r}
+county_codes <- read.csv("data/county_codes/county_codes.csv")
+
+county_codes <- county_codes %>%
+  rename(COUNTY = county)
+
+county_codes$COUNTY <- county_codes$COUNTY %>%
+  str_sub(3,5)
+
+acs_data_nineties <- 
+        inner_join(acs_data, county_codes, by = "COUNTY", copy = FALSE)
+
+head(acs_data_nineties)
+```
+
+
+``` {r}
+acs_data_nineties <- acs_data_nineties %>%
+  ungroup(COUNTY) %>%
+  rename(pop = `sum(POP)`) %>%
+  rename(year = YEAR) %>%
+  rename(race = RACE_SEX)%>%
+  select(year,name,race,pop)
+
+
+head(acs_data_nineties)
+
+
 
 # Write it out to a csv
-write.csv(acs_data, "data/acs_5y_2018_data.csv", row.names = FALSE)
+write.csv(acs_data_nineties, "data/demographics/acs_data_nineties.csv", row.names = FALSE)
 ```
 
