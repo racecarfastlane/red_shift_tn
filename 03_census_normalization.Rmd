@@ -1,0 +1,43 @@
+---
+title: "Census API Data Normalization"
+author: "Stan Ferguson"
+date: "1/14/2021"
+output: html_document
+---
+
+
+```{r}
+# Load libraries
+library(censusapi)
+library(tidyr)
+library(stringr)
+library(dplyr)
+library(tidyverse)
+```
+
+
+```{r}
+acs_eightyeight <-  read_csv("data/demographics/pe-02-1988.csv",skip = 5)
+  
+head(acs_eightyeight)  
+
+acs_eightynine <- read_csv("data/demographics/pe-02-1989.csv",skip = 5)
+
+head(acs_eightynine)
+
+acs_eighties <- rbind(acs_eightyeight,acs_eightynine)
+
+acs_eighties %>%
+  filter(str_detect(`FIPS State and County Codes`,pattern = "47."))%>%
+  rename(year = `Year of Estimate`) %>%
+  rename(county = `FIPS State and County Codes`)%>%
+  mutate(pop = rowSums(.[4:21]))%>%
+  mutate(
+    race = case_when(
+      `Race/Sex Indicator` %in% c("White male","White female") ~ "white",
+      `Race/Sex Indicator` %in% c("Black male","Black female") ~ "black",
+      `Race/Sex Indicator` %in% c("Other races male","Other races female") ~ "other"
+    ))
+  
+```
+
