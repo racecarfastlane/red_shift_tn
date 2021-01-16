@@ -13,10 +13,16 @@ library(tidyr)
 library(stringr)
 library(dplyr)
 library(tidyverse)
+
+# create not-in (%nin%)
+
+`%nin%` = Negate(`%in%`)
 ```
 
 
 ```{r}
+#read in csv files
+
 acs_eightyeight <-  read_csv("data/demographics/pe-02-1988.csv",skip = 5)
   
 head(acs_eightyeight)  
@@ -25,9 +31,44 @@ acs_eightynine <- read_csv("data/demographics/pe-02-1989.csv",skip = 5)
 
 head(acs_eightynine)
 
+acs_nineties <- read_csv("data/demographics/acs_data_nineties.csv")
+
+head(acs_nineties)
+
+acs_aughts <- read_csv("data/demographics/acs_aughts.csv")
+
+head(acs_aughts)
+
+acs_tens <- read.csv("data/demographics/acs_5y_2010s_data.csv")
+
+acs_tens$county <- as.character(acs_tens$county)
+
+head(acs_tens)
+
+county_codes <- read.csv("data/county_codes/county_codes.csv")
+
+county_codes$county <- as.character(county_codes$county)
+
+head(county_codes)
+```
+
+
+
+
+```{r}
+#join the eighties files
+
 acs_eighties <- rbind(acs_eightyeight,acs_eightynine)
 
-acs_eighties %>%
+```
+
+
+```{r}
+#this chunk normalizes eighties to year / count / race / pop format
+
+#combine sex population for each race category
+
+acs_eighties <-  acs_eighties %>%
   filter(str_detect(`FIPS State and County Codes`,pattern = "47."))%>%
   rename(year = `Year of Estimate`) %>%
   rename(county = `FIPS State and County Codes`)%>%
@@ -37,7 +78,124 @@ acs_eighties %>%
       `Race/Sex Indicator` %in% c("White male","White female") ~ "white",
       `Race/Sex Indicator` %in% c("Black male","Black female") ~ "black",
       `Race/Sex Indicator` %in% c("Other races male","Other races female") ~ "other"
-    ))
+    )) 
+
+acs_eighties <- acs_eighties%>%
+  group_by(year,county,race) %>%
+  summarise(sum(pop)) %>%
+  rename(pop = `sum(pop)`)
+
+
+acs_eighties <- 
+  inner_join(acs_eighties,county_codes,by = "county", copy = FALSE)
+
+head(acs_eighties)
+
+acs_eighties <- acs_eighties %>%
+  mutate(county = name)%>%
+  select(year,county,race,pop)
+
+head(acs_eighties)
   
 ```
+
+```{r}
+#add 19 to year column in acs_nineties
+
+acs_nineties <- acs_nineties %>%
+  mutate(year = paste("19",year,sep=""))
+
+View(acs_nineties)
+
+```
+
+
+
+```{r}
+#this chunk normalizes aughts to year/ county / race / pop format
+
+#select only needed cols
+
+acs_aughts <- acs_aughts %>%
+  filter(STATE == "47") %>%
+  filter(SEX == "0") %>%
+  filter(RACE != "0") %>%
+  filter(ORIGIN == "0") %>%
+  select(COUNTY,RACE,POPESTIMATE2000,POPESTIMATE2001,POPESTIMATE2002,POPESTIMATE2003,POPESTIMATE2004,
+         POPESTIMATE2005,POPESTIMATE2006,POPESTIMATE2007,POPESTIMATE2008,POPESTIMATE2009,POPESTIMATE2010)
+
+
+View(acs_aughts)
+
+#pivot years
+
+acs_aughts_pivot <- pivot_longer(
+        acs_aughts,
+        cols = starts_with("POPESTIMATE"),
+        names_to = "year"
+)
+
+#Remove POPESTIMATE from year
+
+acs_aughts_pivot$year <- acs_aughts_pivot$year %>%
+  str_sub(12,15)
+  
+acs_aughts <- acs_aughts_pivot %>%
+  select(year,COUNTY,RACE,value)%>%
+  rename(county = COUNTY)%>%
+  rename(race = RACE) %>%
+  rename(pop = value)
+
+county_codes$county <- county_codes$county %>%
+  str_sub(3,5)
+
+head(county_codes)
+
+acs_aughts <- 
+  inner_join(acs_aughts,county_codes,by = "county", copy = FALSE)
+
+head(acs_aughts)
+
+acs_aughts <- acs_aughts %>%
+  mutate(county = name) %>%
+  select(year,county,race,pop)
+
+acs_aughts <- acs_aughts %>%
+  arrange(year)%>%
+  mutate(
+    race = case_when(
+      race == "1" ~ "white",
+      race == "2" ~ "black",
+      race %nin% c("1","2") ~ "other"
+  ))
+
+
+View(acs_aughts)
+
+acs_aughts %>%
+  group_by(year,county,race)%>%
+  summarise(sum(pop))%>%
+  rename(pop = `sum(pop)`)
+
+
+
+```
+
+
+```{r}
+# This chunk normalizes tens data to year/ county / race / pop format
+
+
+View(acs_tens)
+
+acs_tens_test <- acs_tens %>%
+  arrange(year,county)%>%
+  filter(label_03 != "Total population") %>%
+  select (year,county,label_03,label_04,label_05,value)
+
+View(acs_tens_test)
+    
+
+```
+
 
