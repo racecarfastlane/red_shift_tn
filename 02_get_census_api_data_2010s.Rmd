@@ -31,10 +31,9 @@ apis <- listCensusApis()
 # View(apis)
 ```
 
-##### Balancing breadth and depth, we decided to use the 2018 ACS 5-year data  
-Look at the metadata and make some decisions about what to keep (to-do offline).
+
 ``` {r}
-# Create a new dataframe to store the metadata for the 2018 ACS 5-year dataset
+
 
 
 acs_tens <- c("2011","2012","2013","2014","2015","2016","2017","2018")
@@ -98,7 +97,6 @@ write.csv(acs_vars_tens,"data/demographics/acs_vars_tens.csv")
 
 ```{r}
 # Create a list of the label_02 values we want to filter on
-label_02s <- 'HISPANIC OR LATINO AND RACE'
 
 vals <- c("DP05_0037E",
           "DP05_0038E",
@@ -135,8 +133,7 @@ View(acs_vars_tens)
 ```{r}
 # Create a new dataframe for only the variables we want and drop the columns we won't need
 target_acs_vars <- acs_vars_tens %>% 
-        filter(name %in% vals) %>% 
-        select(-one_of(c("label", "label_07", "label_08", "predicateType", "group", "limit", "attributes", "required")))
+        filter(name %in% vals)
 ```
 
 
@@ -162,8 +159,13 @@ acs_vars <- acs_vars_tens %>%
      convert = FALSE
      )
 
-# Order by the `label_02` column
-acs_vars_tens <- arrange(acs_vars, concept, label_01, label_02, label_03, label_04, label_05, label_06, label_07, label_08)
+View(acs_vars)
+
+acs_vars <- acs_vars %>%
+  arrange(name)
+
+
+View(acs_vars)
 ```
 
 
@@ -231,16 +233,16 @@ View(acs_data_tens_join)
 
 
 ```{r}
-county_codes <- read.csv("data/county_codes/county_codes.csv")
+county_codes_tens <- read.csv("data/county_codes/county_codes.csv")
 ```
 
 ```{r}
 
-county_codes$county <- county_codes$county %>%
+county_codes_tens$county <- county_codes_tens$county %>%
   str_sub(3,5)
 
 
-View(county_codes)
+View(county_codes_tens)
 
 ```
 
@@ -248,7 +250,7 @@ View(county_codes)
 ```{r}
 
 acs_data_tens_join <-
-        inner_join(acs_data_tens_join, county_codes, by = "county", copy = FALSE)
+        inner_join(acs_data_tens_join, county_codes_tens, by = "county", copy = FALSE)
 
 ```
 
