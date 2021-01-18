@@ -1,0 +1,213 @@
+---
+title: "Census API Data Normalization"
+author: "Stan Ferguson"
+date: "1/14/2021"
+output: html_document
+---
+
+
+```{r}
+# Load libraries
+library(censusapi)
+library(tidyr)
+library(stringr)
+library(dplyr)
+library(tidyverse)
+
+# create not-in (%nin%)
+
+`%nin%` = Negate(`%in%`)
+```
+
+
+```{r}
+#read in csv files
+
+acs_aughts <- read_csv("data/demographics/acs_aughts.csv")
+
+head(acs_aughts)
+
+acs_tens <- read.csv("data/demographics/acs_5y_2010s_data.csv", colClasses = c(county = "character",year = "character"))
+
+county_codes <- read.csv("data/county_codes/county_codes.csv", colClasses = c(county = "character"))
+
+head(county_codes)
+```
+
+
+
+
+```{r}
+#this chunk normalizes aughts to year/ county / race / pop format
+
+#select only needed cols
+
+acs_aughts <- acs_aughts %>%
+  filter(STATE == "47") %>%
+  filter(SEX == "0") %>%
+  filter(RACE != "0") %>%
+  filter(ORIGIN == "0") %>%
+  select(COUNTY,RACE,POPESTIMATE2000,POPESTIMATE2001,POPESTIMATE2002,POPESTIMATE2003,POPESTIMATE2004,
+         POPESTIMATE2005,POPESTIMATE2006,POPESTIMATE2007,POPESTIMATE2008,POPESTIMATE2009,POPESTIMATE2010)
+
+
+#View(acs_aughts)
+
+#pivot years
+
+acs_aughts_pivot <- pivot_longer(
+        acs_aughts,
+        cols = starts_with("POPESTIMATE"),
+        names_to = "year"
+)
+
+#Remove POPESTIMATE from year
+
+acs_aughts_pivot$year <- acs_aughts_pivot$year %>%
+  str_sub(12,15)
+  
+acs_aughts <- acs_aughts_pivot %>%
+  select(year,COUNTY,RACE,value)%>%
+  rename(county = COUNTY)%>%
+  rename(race = RACE) %>%
+  rename(pop = value)
+
+county_codes$county <- county_codes$county %>%
+  str_sub(3,5)
+
+head(county_codes)
+
+acs_aughts <- 
+  inner_join(acs_aughts,county_codes,by = "county", copy = FALSE)
+
+head(acs_aughts)
+
+acs_aughts <- acs_aughts %>%
+  mutate(county = name) %>%
+  select(year,county,race,pop)
+
+acs_aughts <- acs_aughts %>%
+  arrange(year)%>%
+  mutate(
+    race = case_when(
+      race == "1" ~ "white",
+      race == "2" ~ "black",
+      race == "3" ~ "first nation",
+      race == "4" ~ "asian",
+      race == "5" ~ "native hawaiian or pacific islander",
+      race == "6" ~ "two or more races"
+  ))
+
+
+
+
+acs_aughts <- acs_aughts %>%
+  group_by(year,county,race)%>%
+  summarise(sum(pop))%>%
+  rename(pop = `sum(pop)`)
+
+#View(acs_aughts)
+
+```
+
+
+```{r}
+# This chunk normalizes tens data to year/ county / race / pop format
+
+
+  acs_tens_six_years <- acs_tens %>%
+  filter(label_03 == "One race" & !is.na(label_04)| (label_03 == "Two or more races" & is.na(label_04)))%>%
+  filter(is.na(label_05)) %>%
+  mutate(race = case_when (is.na(label_04)| label_04 == 'Some other race' ~ "other race",
+                           label_03 == "One race" ~ str_to_lower(label_04)))%>%
+  select(year,label_03,county,race,value) %>%
+  arrange(year,county)
+
+
+acs_tens_last_two_years <- acs_tens %>%
+  filter(year %in% c("2017","2018")) %>%
+  filter(label_04 == "One race" & !is.na(label_05)| (label_04 == "Two or more races" & is.na(label_05)))%>%
+  filter(is.na(label_06)) %>%
+  mutate(race = case_when (is.na(label_05)| label_05 == 'Some other race' ~ "other race",
+                           label_04 == "One race" ~ str_to_lower(label_05)))%>%
+  mutate(county = name.y)%>%
+  select(year,county,race,value) %>%
+  arrange(year,county)
+
+acs_tens_six_years <- acs_tens_six_years %>% 
+    distinct()
+
+acs_tens_last_two_years <- acs_tens_last_two_years %>%
+  distinct()
+  
+  
+  
+  
+
+  races <- c("american indian and alaska native","black or african american","native hawaiian and other pacific islander")
+    
+ acs_tens_six_years <- acs_tens_six_years %>%
+   group_by(year,county,race)%>%
+   mutate(
+     race = case_when(
+       race == "american indian and alaska native" ~ "first nation",
+       race == "black or african american" ~ "black",
+       race == "native hawaiian and other pacific islander" ~ "native hawaiian or pacific islander",
+       race %nin% races ~ race
+     )
+   ) %>%
+   summarise(sum(value))%>%
+   rename(pop = `sum(value)`) %>%
+   arrange(year,county)
+ 
+ 
+  acs_tens_last_two_years <- acs_tens_last_two_years %>%
+   group_by(year,county,race)%>%
+   mutate(
+     race = case_when(
+       race == "american indian and alaska native" ~ "first nation",
+       race == "black or african american" ~ "black",
+       race == "native hawaiian and other pacific islander" ~ "native hawaiian or pacific islander",
+       race %nin% races ~ race
+     )
+   ) %>%
+   summarise(sum(value))%>%
+   rename(pop = `sum(value)`) %>%
+   arrange(year,county)
+```
+
+
+```{r}
+
+acs_tens_six_years <- 
+  inner_join(acs_tens_six_years,county_codes,by = "county", copy = FALSE)
+
+acs_tens_six_years <- acs_tens_six_years %>%
+  mutate(county = name) %>%
+  select(year,county,race,pop)
+
+ 
+ #View(acs_tens_six_years)
+```
+
+
+```{r}
+
+#combine everything
+
+acs_full_tens <- 
+  rbind(acs_tens_six_years,acs_tens_last_two_years)
+
+acs_full_data <-
+  rbind(acs_full_tens,acs_aughts)
+
+acs_full_data <- acs_full_data %>%
+  arrange(year,county)
+
+View(acs_full_data)
+
+write.csv(acs_full_data,"data/demographics/acs_full_data.csv",row.names = FALSE)
+
+```
+
+
