@@ -95,7 +95,7 @@ acs_aughts <- acs_aughts %>%
       race == "3" ~ "first nation",
       race == "4" ~ "asian",
       race == "5" ~ "native hawaiian or pacific islander",
-      race == "6" ~ "two or more races"
+      race == "6" ~ "other race"
   ))
 
 
@@ -174,6 +174,8 @@ acs_tens_last_two_years <- acs_tens_last_two_years %>%
    summarise(sum(value))%>%
    rename(pop = `sum(value)`) %>%
    arrange(year,county)
+  
+ 
 ```
 
 
@@ -181,6 +183,8 @@ acs_tens_last_two_years <- acs_tens_last_two_years %>%
 
 acs_tens_six_years <- 
   inner_join(acs_tens_six_years,county_codes,by = "county", copy = FALSE)
+
+
 
 acs_tens_six_years <- acs_tens_six_years %>%
   mutate(county = name) %>%
@@ -201,6 +205,7 @@ acs_full_tens <-
 acs_full_data <-
   rbind(acs_full_tens,acs_aughts)
 
+
 acs_full_data <- acs_full_data %>%
   arrange(year,county)
 
@@ -210,4 +215,9 @@ write.csv(acs_full_data,"data/demographics/acs_full_data.csv",row.names = FALSE)
 
 ```
 
+```{r}
+
+
+
+```
 
