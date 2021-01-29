@@ -1,0 +1,213 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+library(maps)
+library(plotly)
+library(colorspace)
+library(tidyverse)
+library(ggplot2)
+library(ggiraph)
+```
+```{r}
+states <- map_data("state")
+
+head(states)
+
+states <- map_data("state")
+tn<-subset(states, region %in% c("tennessee"))
+tn_df<-subset(states, region=="tennessee")
+counties<-map_data("county")
+tn_county<-subset(counties, region=="tennessee")
+tn_base <- ggplot(data = tn_df, mapping = aes(x = long, y = lat, group = group)) + 
+  coord_fixed(1.3) + 
+  geom_polygon(color = "black", fill = "gray")
+tn_base +  
+  geom_polygon(data = tn_county, fill = NA, color = "white") +
+  geom_polygon(color = "black", fill = NA)
+```
+
+
+```{r}
+simpleCap <- function(x) {
+  sapply(x, function(x){
+    x <- tolower(x)
+    s <- strsplit(x, " ")[[1]]
+    paste(toupper(substring(s, 1,1)), substring(s, 2),
+        sep="", collapse=" ")
+  }
+  )
+}
+
+
+tn_county_rename <- tn_county %>%
+  rename(county = subregion) %>%
+  mutate(county = simpleCap(county))
+
+
+  
+
+```
+
+```{r}
+county_pres_returns <- read.csv("data/county_pres_returns/county_pres_returns.csv")
+
+
+```
+
+```{r}
+
+county_pres_returns <- county_pres_returns %>%
+  group_by(year,county,candidate,party,candidatevotes,totalvotes)%>%
+  summarise_each(funs(sum))
+
+
+
+```
+
+
+```{r}
+
+
+county_pres_votes <- county_pres_returns %>%
+  ungroup() %>%
+  select(year,county,party,candidatevotes,totalvotes) %>%
+  filter(party %in% c("democrat","republican")) %>%
+  pivot_wider(values_from = candidatevotes,
+              names_from = party) %>%
+  mutate(dem_vote_pcnt = round(democrat/totalvotes*100,2))%>%
+  mutate(rep_vote_pcnt = round(republican/totalvotes*100,2))%>%
+  select(year, county,dem_vote_pcnt,rep_vote_pcnt)
+
+
+```
+
+
+
+```{r}
+
+county_pres_cans <- county_pres_returns %>%
+  ungroup() %>%
+  select(year,county,candidate,party) %>%
+  filter(party %in% c("democrat","republican")) %>%
+  pivot_wider(values_from = candidate,
+              names_from = party)%>%
+  rename(democrat_candidate = democrat) %>%
+  rename(republican_candidate = republican)
+
+
+
+```
+
+```{r}
+county_pres_cans <- 
+  inner_join(county_pres_cans,county_pres_votes,by = c("county","year"), copy = FALSE)
+```
+
+
+```{r}
+
+head(county_pres_cans)
+
+```
+
+
+
+```{r}
+county_pres_returns <- county_pres_cans %>% 
+    mutate(county = simpleCap(county))
+
+tn_county_rename <- tn_county_rename %>% mutate(county = replace(county, county == "De Kalb", "Dekalb"))
+
+county_pres_returns <- 
+  inner_join(county_pres_returns,tn_county_rename,by = "county", copy = FALSE)
+
+head(county_pres_returns)
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+
+```{r}
+ditch_the_axes <- theme(
+  axis.text = element_blank(),
+  axis.line = element_blank(),
+  axis.ticks = element_blank(),
+  panel.border = element_blank(),
+  panel.grid = element_blank(),
+  axis.title = element_blank())
+```
+
+
+```{r}
+# 
+# county_pres_returns_test <- county_pres_returns %>%
+#   filter(year == 2016)
+
+
+```
+
+
+
+```{r}
+
+
+
+county_pres_returns <- county_pres_returns %>%
+      mutate(tooltip = sprintf('County: %s \n %s (D): %s\n%s (R):%s',county,democrat_candidate,dem_vote_pcnt,republican_candidate,rep_vote_pcnt))
+
+head(county_pres_returns)
+
+```
+
+```{r}
+write.csv(county_pres_returns,"data/county_pres_returns/county_pres_returns_shiny.csv",row.names = FALSE)
+
+```
+
+
+
+```{r}
+
+
+elb<-tn_base + 
+      geom_polygon(data = county_pres_returns_test, aes(fill = rep_vote_pcnt, 
+                                                        text = tooltip))+
+      labs(fill = "Republican \nVote Share") +
+      geom_polygon(color = "black", fill = NA) +
+    theme_bw() +
+      ditch_the_axes
+```
+
+
+
+```{r}
+elb<-elb +
+            #scale_fill_gradientn(colours = colorspace::diverging_hcl(3,palette = "Blue-Red")) 
+            scale_fill_gradient2(midpoint = 50,low="darkblue",high="darkred",limits=c(29,86))
+
+```
+
+
+```{r}
+
+ggplotly(elb,tooltip = "text")
+
+```
+```{r}
+
+
+
+```
+

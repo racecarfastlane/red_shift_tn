@@ -92,7 +92,7 @@ acs_data_tn <- acs_data_tn %>%
       race == "white" ~ popcalc
     ))
 
-
+acs_data_tn_np <- acs_data_tn
 
 ```
 
@@ -132,7 +132,7 @@ acs_data_tn <-
   inner_join(acs_data_tn,tn_county_rename,by = "county", copy = FALSE)
 
 
-
+View(acs_data_tn)
 
 
 
@@ -207,8 +207,21 @@ ggplotly(elb,tooltip = "text")
 
 ```
 ```{r}
+acs_data_tn_np %>%
+  filter(county=="Knox")%>%
+  ggplot(aes(x=year,y=percap,color=race,group=race))+
+  geom_line(size=1.25)
+
+write.csv(acs_data_tn_np,"data/demographics/acs_data_tn_np.csv",row.names = FALSE)
+
+```
 
 
 
+```{r}
+acs_data_tn_np %>%
+  filter(county=="Davidson")%>%
+  ggplot(aes(x=year,y=percap,group=race,color=race))+
+  geom_line()
 ```
 
