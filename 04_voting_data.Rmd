@@ -1,0 +1,42 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+# Load libraries
+library(censusapi)
+library(tidyr)
+library(stringr)
+library(dplyr)
+library(tidyverse)
+
+
+```
+
+
+
+```{r}
+
+
+
+county_pres_returns <- read.csv("data/county_pres_returns/countypres_2000-2016.csv")
+
+head(county_pres_returns)
+
+county_pres_returns <- county_pres_returns %>%
+  filter(state == "Tennessee") %>%
+  mutate(
+    party = case_when(
+      is.na(party) ~ "other or no party",
+      !is.na(party) ~ party
+    )
+  ) %>%
+  select(year,county,candidate,party,candidatevotes,totalvotes)
+
+write.csv(county_pres_returns,"data/county_pres_returns/county_pres_returns.csv",row.names = FALSE)
+
+
+```
+
